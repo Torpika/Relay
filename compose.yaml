@@ -1,0 +1,80 @@
+name: relay
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: relay
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - relay_postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: worker
+    command: ["pnpm", "db:migrate"]
+    environment: &relay-environment
+      DATABASE_URL: postgres://relay:${POSTGRES_PASSWORD}@postgres:5432/relay
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY:?Set CREDENTIAL_MASTER_KEY in .env}
+      AUTH_MODE: ${AUTH_MODE:?Set AUTH_MODE in .env}
+      ALLOW_LOCAL_DEVELOPMENT_AUTH: ${ALLOW_LOCAL_DEVELOPMENT_AUTH:-false}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
+      CUSTOM_PROVIDER_HOSTS: ${CUSTOM_PROVIDER_HOSTS:-}
+      ALLOW_PRIVATE_PROVIDER_URLS: ${ALLOW_PRIVATE_PROVIDER_URLS:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      target: web
+    environment: *relay-environment
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    profiles: ["remote-api"]
+    build:
+      context: .
+      target: worker
+    command: ["pnpm", "worker"]
+    environment:
+      <<: *relay-environment
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-750}
+      JOB_LEASE_MS: ${JOB_LEASE_MS:-180000}
+      PROVIDER_REQUEST_TIMEOUT_MS: ${PROVIDER_REQUEST_TIMEOUT_MS:-120000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 3m
+    restart: unless-stopped
+
+volumes:
+  relay_postgres:
