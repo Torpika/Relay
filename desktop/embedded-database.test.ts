@@ -18,7 +18,7 @@ describe("startEmbeddedDatabase", () => {
     const scratchDirectory = await mkdtemp(join(tmpdir(), "relay-embedded-database-"));
     temporaryDirectories.push(scratchDirectory);
     const runtime = await startEmbeddedDatabase({
-      dataDirectory: join(scratchDirectory, "database"),
+      dataDirectory: join(scratchDirectory, "Application Support", "Relay", "database"),
       migrationsDirectory: resolve("db/migrations"),
       assetsDirectory: resolve("node_modules/@electric-sql/pglite/dist")
     });

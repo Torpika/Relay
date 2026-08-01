@@ -1,5 +1,5 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
@@ -14,12 +14,13 @@ export async function startEmbeddedDatabase(input: {
   migrationsDirectory: string;
   assetsDirectory: string;
 }): Promise<EmbeddedDatabaseRuntime> {
+  await mkdir(dirname(input.dataDirectory), { recursive: true });
   const [pgliteWasm, initdbWasm, filesystemBundle] = await Promise.all([
     compileWasm(join(input.assetsDirectory, "pglite.wasm")),
     compileWasm(join(input.assetsDirectory, "initdb.wasm")),
     readFile(join(input.assetsDirectory, "pglite.data"))
   ]);
-  const database = await PGlite.create(pathToFileURL(input.dataDirectory).href, {
+  const database = await PGlite.create(input.dataDirectory, {
     extensions: {
       pgcrypto: pathToFileURL(join(input.assetsDirectory, "pgcrypto.tar.gz"))
     },
