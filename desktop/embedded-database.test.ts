@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import postgres from "postgres";
@@ -17,9 +17,11 @@ describe("startEmbeddedDatabase", () => {
   it("migrates a private database and accepts PostgreSQL clients over loopback", async () => {
     const scratchDirectory = await mkdtemp(join(tmpdir(), "relay-embedded-database-"));
     temporaryDirectories.push(scratchDirectory);
+    const migrationsDirectory = resolve("db/migrations");
+    const expectedMigrationCount = (await readdir(migrationsDirectory)).filter((name) => name.endsWith(".sql")).length;
     const runtime = await startEmbeddedDatabase({
       dataDirectory: join(scratchDirectory, "Application Support", "Relay", "database"),
-      migrationsDirectory: resolve("db/migrations"),
+      migrationsDirectory,
       assetsDirectory: resolve("node_modules/@electric-sql/pglite/dist")
     });
     openDatabases.push(runtime);
@@ -36,7 +38,7 @@ describe("startEmbeddedDatabase", () => {
       `;
 
       expect(tableCount).toBeGreaterThanOrEqual(16);
-      expect(migrationCount).toBe(3);
+      expect(migrationCount).toBe(expectedMigrationCount);
     } finally {
       await sql.end();
     }

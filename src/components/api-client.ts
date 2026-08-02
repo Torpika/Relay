@@ -80,6 +80,8 @@ export interface CreateProviderInput {
   protocol: ProviderProtocol;
   baseUrl: string;
   credential?: string;
+  localCommand?: string;
+  localArgs?: string[];
 }
 
 export interface CreateAgentInput {

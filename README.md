@@ -14,6 +14,7 @@ Relay is a local-first multi-agent orchestration workspace for macOS. It connect
 | Claude Code | Claude Code CLI | Claude Code project transcripts | Existing Claude login |
 | Gemini CLI | Gemini CLI | Gemini CLI session files | Existing Google login |
 | Kimi Code | Kimi Code CLI | Kimi Code session files | Existing Kimi login |
+| Custom local CLI | Explicit local command | — | Existing local login or runtime |
 
 Claude Desktop and Kimi Desktop are detected when present, but Relay does not scrape their private browser/cache storage. Install the corresponding supported CLI to run those AIs. Grok and other services can be added through the optional API adapters when a stable local headless runtime is not available.
 
@@ -22,7 +23,7 @@ Claude Desktop and Kimi Desktop are detected when present, but Relay does not sc
 ## What is included
 
 - Multiple concurrent sessions with independent goals and agent rosters
-- Reusable Codex, Claude Code, Gemini CLI, and Kimi Code connections and agent profiles
+- Reusable Codex, Claude Code, Gemini CLI, Kimi Code, and trusted custom local CLI connections and agent profiles
 - Read-only discovery and bounded transcript import for supported local task formats, without displaying or copying source workspace paths
 - Per-agent model selection and minimal, low, medium, high, or extra-high thinking levels
 - A Relay MCP server for creating and controlling sessions from Codex Desktop
@@ -161,6 +162,8 @@ Relay includes presets for:
 | Custom | Operator allowlist | Responses or Chat Completions |
 
 Local reviews run in a dedicated empty Relay runtime directory rather than a source tree or home directory. Codex, Claude Code, and Gemini are invoked in non-mutating/plan modes. Kimi's non-interactive CLI does not combine its prompt and plan flags, so Relay isolates its working directory, disables Kimi telemetry, and instructs it to review without modifying files. The database remains the source of truth, so worker or app restarts preserve Relay history.
+
+For an AI CLI Relay does not yet recognize, choose **Custom local CLI** while adding an AI. Relay requires the executable’s absolute path, accepts arguments one per line, and invokes the exact command without a shell. Prompts are supplied through standard input unless an argument contains `{prompt}`. This is intended for local commands you trust; Relay still uses its dedicated empty runtime directory and keeps the command configuration encrypted at rest.
 
 Model IDs stay editable because installed runtime versions and account access vary. Relay maps each agent's thinking level to Codex reasoning effort, `CLAUDE_CODE_EFFORT_LEVEL`, or `KIMI_MODEL_THINKING_EFFORT`; Gemini uses the selected model's supported reasoning behavior.
 

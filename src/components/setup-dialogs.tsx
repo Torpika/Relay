@@ -55,6 +55,8 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
   const [baseUrl, setBaseUrl] = useState(preset.baseUrl);
   const [protocol, setProtocol] = useState<ProviderProtocol>(preset.protocol);
   const [credential, setCredential] = useState("");
+  const [localCommand, setLocalCommand] = useState("");
+  const [localArguments, setLocalArguments] = useState("");
   const [showCredential, setShowCredential] = useState(false);
   const [agentName, setAgentName] = useState("");
   const [model, setModel] = useState(preset.modelPlaceholder);
@@ -66,6 +68,7 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
   const [error, setError] = useState<string | null>(null);
 
   const selectedConnection = connections.find((connection) => connection.id === selectedConnectionId);
+  const customLocalProvider = providerKind === "local_custom";
 
   const chooseProvider = (kind: ProviderKind) => {
     const nextPreset = getProviderPreset(kind);
@@ -97,6 +100,11 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
       return;
     }
 
+    if (connectionMode === "new" && customLocalProvider && !localCommand.trim()) {
+      setError("Enter the absolute path to the trusted local AI command.");
+      return;
+    }
+
     if (connectionMode === "new" && !localProvider && (!baseUrl.trim() || !credential.trim())) {
       setError("Connection name, base URL, and API key are required.");
       return;
@@ -124,7 +132,10 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
               kind: providerKind,
               protocol,
               baseUrl: baseUrl.trim(),
-              ...(localProvider ? {} : { credential: credential.trim() })
+              ...(customLocalProvider ? {
+                localCommand: localCommand.trim(),
+                localArgs: localArguments.split(/\r?\n/u).map((argument) => argument.trim()).filter(Boolean)
+              } : localProvider ? {} : { credential: credential.trim() })
             })
           : selectedConnection;
 
@@ -230,7 +241,25 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
                 <Field label="Connection name">
                   <input value={connectionName} onChange={(event) => setConnectionName(event.target.value)} />
                 </Field>
-                {localProvider ? (
+                {customLocalProvider ? (
+                  <>
+                    <Field className="form-grid__wide" label="Command" hint="Use an absolute executable path. Relay invokes it without a shell.">
+                      <input
+                        value={localCommand}
+                        placeholder="/absolute/path/to/your-ai-cli"
+                        onChange={(event) => setLocalCommand(event.target.value)}
+                      />
+                    </Field>
+                    <Field className="form-grid__wide" label="Arguments" hint="One argument per line. Use {prompt} in an argument, or leave it out to receive the prompt through standard input.">
+                      <textarea
+                        rows={4}
+                        value={localArguments}
+                        placeholder={"--model\nyour-model\n--prompt\n{prompt}"}
+                        onChange={(event) => setLocalArguments(event.target.value)}
+                      />
+                    </Field>
+                  </>
+                ) : localProvider ? (
                   <Field label="Runtime">
                     <input value={providerKind === "local_codex" ? "Codex Desktop · MCP" : `${preset.name} · local CLI`} readOnly />
                   </Field>
@@ -273,7 +302,7 @@ export function AddAgentDialog({ open, connections, onClose, onCreated }: AddAge
                   </>
                 )}
               </div>
-              <div className="security-note"><ShieldCheck size={15} /><span>{localProvider ? `Uses the existing ${preset.name} login on this Mac. No API key is stored in Relay.` : "Encrypted at rest. Relay never returns the raw credential."}</span></div>
+              <div className="security-note"><ShieldCheck size={15} /><span>{customLocalProvider ? "Relay runs only this exact command, without a shell, from its isolated local AI directory. Command configuration stays encrypted in Relay." : localProvider ? `Uses the existing ${preset.name} login on this Mac. No API key is stored in Relay.` : "Encrypted at rest. Relay never returns the raw credential."}</span></div>
             </>
           )}
 

@@ -43,6 +43,14 @@ export const providerPresets: ProviderPreset[] = [
     modelPlaceholder: "default"
   },
   {
+    kind: "local_custom",
+    name: "Custom local CLI",
+    description: "Runs a trusted local AI command without a hosted API. Relay uses an isolated working directory.",
+    baseUrl: "local://custom",
+    protocol: "local_cli",
+    modelPlaceholder: "default"
+  },
+  {
     kind: "openai",
     name: "OpenAI / Codex",
     description: "OpenAI Responses API models, including Codex-capable models available to your project.",

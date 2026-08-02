@@ -786,7 +786,8 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
         kind: snapshot.provider.kind,
         protocol: snapshot.provider.protocol,
         baseUrl: snapshot.provider.baseUrl,
-        credential: snapshot.provider.protocol === "codex_mcp" || snapshot.provider.protocol === "local_cli"
+        credential: snapshot.provider.protocol === "codex_mcp" ||
+          (snapshot.provider.protocol === "local_cli" && snapshot.provider.kind !== "local_custom")
           ? undefined
           : decryptCredential(row.credential_envelope, {
               workspaceId,

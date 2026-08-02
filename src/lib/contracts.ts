@@ -29,6 +29,7 @@ export const providerKinds = [
   "local_claude",
   "local_gemini",
   "local_kimi",
+  "local_custom",
   "openai",
   "xai",
   "moonshot",
