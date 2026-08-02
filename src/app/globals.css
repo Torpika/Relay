@@ -558,6 +558,7 @@ a {
 .local-thread-search { display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); color: var(--text-subtle); }
 .local-thread-search:focus-within { border-color: var(--line-strong); }
 .local-thread-search input { width: 100%; height: 40px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; }
+.local-threads__privacy-note { margin: -8px 0 0; color: var(--text-subtle); font-size: 9px; line-height: 1.5; }
 .local-thread-list { display: grid; align-content: start; gap: 7px; max-height: 430px; overflow: auto; }
 .local-thread-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-raised); color: var(--text-muted); text-align: left; transition: border-color 140ms ease, background 140ms ease; }
 .local-thread-item:hover { border-color: var(--line-strong); background: var(--surface-hover); }

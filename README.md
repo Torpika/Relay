@@ -23,7 +23,7 @@ Claude Desktop and Kimi Desktop are detected when present, but Relay does not sc
 
 - Multiple concurrent sessions with independent goals and agent rosters
 - Reusable Codex, Claude Code, Gemini CLI, and Kimi Code connections and agent profiles
-- Read-only discovery and bounded transcript import for supported local task formats
+- Read-only discovery and bounded transcript import for supported local task formats, without displaying or copying source workspace paths
 - Per-agent model selection and minimal, low, medium, high, or extra-high thinking levels
 - A Relay MCP server for creating and controlling sessions from Codex Desktop
 - Optional OpenAI Responses and OpenAI-compatible Chat Completions adapters
