@@ -842,6 +842,19 @@ a {
 .phase-stepper__step.is-current .phase-stepper__marker { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 4px var(--accent-soft); }
 .phase-stepper__step.is-current::after { background: linear-gradient(90deg, var(--accent), var(--line)); background-size: 180% 100%; animation: phase-flow 1.8s linear infinite; }
 
+.run-control-signal { display: flex; max-width: 530px; align-items: center; gap: 7px; margin-top: 10px; color: var(--text-muted); }
+.run-control-signal > svg { flex: 0 0 auto; color: #789e66; }
+.run-control-signal > span { min-width: 0; }
+.run-control-signal strong,
+.run-control-signal small { display: inline; font-size: 8px; line-height: 1.45; }
+.run-control-signal strong { color: var(--text-soft); font-weight: 650; }
+.run-control-signal strong::after { content: " — "; color: var(--text-muted); }
+.run-control-signal small { color: var(--text-muted); }
+.run-control-signal--waiting > svg { color: var(--warning); }
+.run-control-signal--paused > svg { color: #8ea9f8; }
+.run-control-signal--stopped > svg { color: #8a928d; }
+.run-control-signal--attention > svg { color: #ff9a75; }
+
 @keyframes phase-flow {
   to { background-position: -180% 0; }
 }
@@ -1813,6 +1826,7 @@ a {
   .run-controls .button { min-width: 34px; padding-inline: 9px; }
   .run-controls > .button--primary:first-child { padding-inline: 11px; }
   .phase-stepper { margin-top: 13px; }
+  .run-control-signal { margin-top: 8px; }
   .phase-stepper__step { justify-content: flex-start; gap: 0; padding-bottom: 9px; }
   .phase-stepper__step > span:last-child { display: none; }
   .phase-stepper__marker { width: 15px; height: 15px; }

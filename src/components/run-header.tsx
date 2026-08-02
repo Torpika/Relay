@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ConversationDetail } from "@/lib/contracts";
 import { PhaseStepper } from "@/components/phase-stepper";
+import { RunControlSignal } from "@/components/run-control-signal";
 import { Button, IconButton, StatusBadge } from "@/components/ui";
 
 interface RunHeaderProps {
@@ -107,7 +108,10 @@ export function RunHeader({
           <IconButton className="inspector-toggle" label="Open run inspector" icon={<PanelRightOpen size={19} />} onClick={onOpenInspector} />
         </div>
       </div>
-      {run ? <PhaseStepper phase={run.phase} status={run.status} /> : null}
+      {run ? <>
+        <PhaseStepper phase={run.phase} status={run.status} />
+        <RunControlSignal run={run} />
+      </> : null}
     </header>
   );
 }
