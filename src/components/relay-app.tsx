@@ -531,6 +531,7 @@ export function RelayApp() {
             <>
               <RunHeader
                 conversation={conversation}
+                events={events}
                 canOperate={canOperate}
                 streamConnected={streamConnected}
                 commandPending={commandPending}

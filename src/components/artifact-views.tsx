@@ -24,6 +24,7 @@ import {
 } from "@/components/formatters";
 import { SafeMarkdown } from "@/components/safe-markdown";
 import { ConsensusSignal } from "@/components/consensus-signal";
+import { describeRunEvent } from "@/lib/run-control";
 
 export type WorkspaceView = "drafts" | "reviews" | "synthesis" | "activity";
 
@@ -308,6 +309,12 @@ function eventLabel(event: DomainEvent): string {
 }
 
 function eventSummary(event: DomainEvent): string {
+  const lifecycleSummary = describeRunEvent(event);
+
+  if (lifecycleSummary) {
+    return lifecycleSummary;
+  }
+
   const values = ["message", "agentName", "phase", "status"]
     .map((key) => event.payload[key])
     .filter((value): value is string => typeof value === "string");

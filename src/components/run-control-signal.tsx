@@ -1,9 +1,9 @@
 import { CircleAlert, CirclePause, CircleStop, LoaderCircle, PlayCircle } from "lucide-react";
-import type { RunDetail } from "@/lib/contracts";
+import type { DomainEvent, RunDetail } from "@/lib/contracts";
 import { describeRunControl } from "@/lib/run-control";
 
-export function RunControlSignal({ run }: { run: RunDetail }) {
-  const signal = describeRunControl(run);
+export function RunControlSignal({ run, events = [] }: { run: RunDetail; events?: DomainEvent[] }) {
+  const signal = describeRunControl(run, events);
   const Icon = signal.tone === "active"
     ? PlayCircle
     : signal.tone === "paused"
