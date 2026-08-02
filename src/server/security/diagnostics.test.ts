@@ -11,4 +11,9 @@ describe("sanitizeDiagnostic", () => {
   it("bounds noisy runtime output", () => {
     expect(sanitizeDiagnostic("x".repeat(900))).toHaveLength(500);
   });
+
+  it("redacts common sensitive values in lifecycle errors", () => {
+    expect(sanitizeDiagnostic("token: abc123 password=letmein C:\\Users\\alex\\project"))
+      .toBe("token: [redacted] password=[redacted] %USERPROFILE%\\project");
+  });
 });
