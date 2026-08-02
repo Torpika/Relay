@@ -20,6 +20,13 @@ import {
   localRuntimeDefinition,
   resolveLocalRuntimeBinary
 } from "@/local/runtime-registry";
+import {
+  createCustomLocalCliConfiguration,
+  customLocalProviderBaseUrl,
+  isExecutableLocalCommand,
+  parseCustomLocalCliConfiguration,
+  serializeCustomLocalCliConfiguration
+} from "@/local/custom-cli";
 
 interface ProviderRow {
   id: string;
@@ -110,14 +117,20 @@ export async function createProviderConnection(
 ): Promise<ProviderConnectionSummary> {
   const connectionId = randomUUID();
   const runtime = isLocalProviderKind(input.kind) ? localRuntimeDefinition(input.kind) : null;
-  const localProvider = runtime !== null;
-  const baseUrl = runtime?.baseUrl ?? normalizeProviderBaseUrl(input.kind, input.baseUrl);
+  const customLocalCli = input.kind === "local_custom";
+  const customConfiguration = customLocalCli
+    ? createCustomLocalCliConfiguration(input.localCommand ?? "", input.localArgs ?? [])
+    : null;
+  const localProvider = runtime !== null || customLocalCli;
+  const baseUrl = runtime?.baseUrl ?? (customLocalCli ? customLocalProviderBaseUrl : normalizeProviderBaseUrl(input.kind, input.baseUrl));
 
   if (!localProvider) {
     await assertSafeProviderDestination(baseUrl);
   }
 
-  const storedCredential = localProvider ? `${input.kind}-login` : input.credential;
+  const storedCredential = customConfiguration
+    ? serializeCustomLocalCliConfiguration(customConfiguration)
+    : localProvider ? `${input.kind}-login` : input.credential;
   const credentialEnvelope = encryptCredential(storedCredential, { workspaceId, connectionId });
 
   try {
@@ -141,8 +154,8 @@ export async function createProviderConnection(
           ${input.protocol},
           ${baseUrl},
           ${transaction.json(toJsonValue(credentialEnvelope))},
-          ${runtime?.credentialHint ?? maskCredential(input.credential)},
-          ${localProvider ? resolveLocalRuntimeBinary(input.kind) ? "healthy" : "unhealthy" : "untested"}
+          ${runtime?.credentialHint ?? (customLocalCli ? "Trusted local command" : maskCredential(input.credential))},
+          ${localProvider ? localProviderIsReady(input.kind, customConfiguration) ? "healthy" : "unhealthy" : "untested"}
         )
         RETURNING
           id,
@@ -182,10 +195,20 @@ export async function updateProviderConnection(
       const existing = await providerRow(transaction, workspaceId, connectionId);
       const kind = input.kind ?? existing.kind;
       const runtime = isLocalProviderKind(kind) ? localRuntimeDefinition(kind) : null;
-      const localProvider = runtime !== null;
+      const customLocalCli = kind === "local_custom";
+      const existingCustomConfiguration = existing.kind === "local_custom"
+        ? parseCustomLocalCliConfiguration(decryptCredential(existing.credential_envelope, { workspaceId, connectionId }))
+        : null;
+      const customConfiguration = customLocalCli
+        ? createCustomLocalCliConfiguration(
+            input.localCommand ?? existingCustomConfiguration?.command ?? "",
+            input.localArgs ?? existingCustomConfiguration?.args ?? []
+          )
+        : null;
+      const localProvider = runtime !== null || customLocalCli;
       const baseUrl = runtime
         ? runtime.baseUrl
-        : normalizeProviderBaseUrl(kind, input.baseUrl ?? existing.base_url);
+        : customLocalCli ? customLocalProviderBaseUrl : normalizeProviderBaseUrl(kind, input.baseUrl ?? existing.base_url);
 
       if (!localProvider) {
         await assertSafeProviderDestination(baseUrl);
@@ -195,11 +218,13 @@ export async function updateProviderConnection(
         throw new ApiError(400, "credential_required", "A credential is required when changing to a remote provider");
       }
 
-      const credentialEnvelope = input.credential
-        ? encryptCredential(input.credential, { workspaceId, connectionId })
-        : existing.credential_envelope;
+      const credentialEnvelope = customConfiguration
+        ? encryptCredential(serializeCustomLocalCliConfiguration(customConfiguration), { workspaceId, connectionId })
+        : input.credential
+          ? encryptCredential(input.credential, { workspaceId, connectionId })
+          : existing.credential_envelope;
       const status = localProvider
-        ? input.enabled === false ? "disabled" : resolveLocalRuntimeBinary(kind) ? "healthy" : "unhealthy"
+        ? input.enabled === false ? "disabled" : localProviderIsReady(kind, customConfiguration) ? "healthy" : "unhealthy"
         : input.enabled === false
         ? "disabled"
         : input.enabled === true || input.credential || input.baseUrl || input.kind || input.protocol
@@ -212,7 +237,7 @@ export async function updateProviderConnection(
           protocol = ${localProvider ? kind === "local_codex" ? "codex_mcp" : "local_cli" : input.protocol ?? existing.protocol},
           base_url = ${baseUrl},
           credential_envelope = ${transaction.json(toJsonValue(credentialEnvelope))},
-          credential_hint = ${runtime?.credentialHint ?? (input.credential ? maskCredential(input.credential) : existing.credential_hint)},
+          credential_hint = ${runtime?.credentialHint ?? (customLocalCli ? "Trusted local command" : input.credential ? maskCredential(input.credential) : existing.credential_hint)},
           status = ${status},
           last_checked_at = ${status === "untested" ? null : existing.last_checked_at},
           last_error = ${status === "untested" ? null : existing.last_error}
@@ -288,6 +313,15 @@ export async function testProviderConnection(
           status = "unhealthy";
           lastError = `${runtime.name} CLI is not installed or is not executable`;
         }
+      } else if (existing.kind === "local_custom") {
+        const configuration = parseCustomLocalCliConfiguration(
+          decryptCredential(existing.credential_envelope, { workspaceId, connectionId })
+        );
+
+        if (!isExecutableLocalCommand(configuration.command)) {
+          status = "unhealthy";
+          lastError = "Custom local CLI command is not installed or is not executable";
+        }
       } else {
         await assertSafeProviderDestination(existing.base_url);
         const credential = decryptCredential(existing.credential_envelope, { workspaceId, connectionId });
@@ -337,4 +371,15 @@ export async function testProviderConnection(
 
     return summary(row);
   });
+}
+
+function localProviderIsReady(
+  kind: ProviderKind,
+  customConfiguration: ReturnType<typeof createCustomLocalCliConfiguration> | null
+): boolean {
+  if (kind === "local_custom") {
+    return Boolean(customConfiguration && isExecutableLocalCommand(customConfiguration.command));
+  }
+
+  return resolveLocalRuntimeBinary(kind) !== null;
 }

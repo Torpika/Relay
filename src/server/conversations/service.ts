@@ -98,6 +98,7 @@ interface ArtifactRow {
   latency_ms: number | null;
   input_tokens: number;
   output_tokens: number;
+  error: string | null;
   created_at: Date | string;
 }
 
@@ -182,6 +183,7 @@ function mapArtifact(row: ArtifactRow): ArtifactSummary {
     latencyMs: row.latency_ms,
     inputTokens: row.input_tokens,
     outputTokens: row.output_tokens,
+    error: row.error,
     createdAt: iso(row.created_at) as string
   };
 }
@@ -482,6 +484,17 @@ export async function deleteConversation(workspaceId: string, conversationId: st
 function selectSynthesizer(agents: ConversationAgentRow[], synthesizerAgentId?: string): string {
   if (agents.length < 2 || agents.some((agent) => !agent.enabled || agent.provider_status === "disabled")) {
     throw new ApiError(400, "invalid_agents", "A run needs at least two enabled agents with enabled providers");
+  }
+
+  const unavailableProviders = agents.filter((agent) => agent.provider_status !== "healthy");
+
+  if (unavailableProviders.length) {
+    const providerNames = [...new Set(unavailableProviders.map((agent) => agent.provider_name))];
+    throw new ApiError(
+      409,
+      "provider_not_ready",
+      `Every selected runtime must pass a readiness check before Relay starts: ${providerNames.join(", ")}`
+    );
   }
 
   const synthesizer = synthesizerAgentId

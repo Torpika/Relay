@@ -59,7 +59,7 @@ export function LocalThreadsDialog({
     }
 
     return payload.threads.filter((thread) =>
-      `${thread.title} ${thread.preview} ${thread.provider} ${thread.workingDirectory ?? ""}`
+      `${thread.title} ${thread.preview} ${thread.provider}`
         .toLocaleLowerCase()
         .includes(normalizedQuery)
     );
@@ -106,6 +106,7 @@ export function LocalThreadsDialog({
             <span className="sr-only">Search local AI tasks</span>
             <input autoFocus value={query} placeholder="Search local tasks" onChange={(event) => setQuery(event.target.value)} />
           </label>
+          <p className="local-threads__privacy-note">Source workspace paths stay private and are not copied into the Relay session.</p>
 
           <div className="local-thread-list" aria-label="Discovered local AI tasks">
             {filteredThreads.length ? filteredThreads.map((thread) => (
@@ -120,7 +121,7 @@ export function LocalThreadsDialog({
                 <span className="local-thread-item__body">
                   <strong>{thread.title}</strong>
                   <small>{thread.preview || "No preview is available for this task."}</small>
-                  <span>{providerName(thread.provider)} · {formatRelativeTime(thread.updatedAt)}{thread.workingDirectory ? ` · ${thread.workingDirectory}` : ""}</span>
+                  <span>{providerName(thread.provider)} · {formatRelativeTime(thread.updatedAt)}</span>
                 </span>
                 {importingThreadId === thread.id ? <LoaderCircle className="spin" size={16} /> : <Import size={16} />}
               </button>

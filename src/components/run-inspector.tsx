@@ -4,6 +4,7 @@ import {
   Check,
   CheckCheck,
   ChevronLeft,
+  CircleAlert,
   Coins,
   Copy,
   Infinity as InfinityIcon,
@@ -24,6 +25,7 @@ import {
   safeAgentColor
 } from "@/components/formatters";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ConsensusSignal } from "@/components/consensus-signal";
 import { IconButton } from "@/components/ui";
 
 interface RunInspectorProps {
@@ -49,6 +51,7 @@ export function RunInspector({
   const tokenLimit = run?.maxTotalTokens ?? null;
   const tokenProgress = tokenLimit ? Math.min(100, (totalTokens / tokenLimit) * 100) : 0;
   const synthesizer = conversation.agents.find((agent) => agent.id === run?.synthesizerAgentId);
+  const latestReviews = conversation.iterations.at(-1)?.artifacts.filter((artifact) => artifact.kind === "review") ?? [];
 
   const copyArtifact = async () => {
     if (!selectedArtifact) {
@@ -97,6 +100,12 @@ export function RunInspector({
               <div className="artifact-inspector__content">
                 {selectedArtifact.content ? <SafeMarkdown content={selectedArtifact.content} compact /> : <p>No output was recorded.</p>}
               </div>
+              {selectedArtifact.error ? (
+                <div className="artifact-inspector__error" role="alert">
+                  <CircleAlert size={16} />
+                  <span><strong>Execution failed</strong><small>{selectedArtifact.error}</small></span>
+                </div>
+              ) : null}
               <dl className="inspector-facts inspector-facts--grid">
                 <div><dt>Latency</dt><dd>{formatDuration(selectedArtifact.latencyMs)}</dd></div>
                 <div><dt>Input</dt><dd>{formatCompactNumber(selectedArtifact.inputTokens)} tok</dd></div>
@@ -119,6 +128,8 @@ export function RunInspector({
                   <div><dt>Failure streak</dt><dd className={(run?.consecutiveFailures ?? 0) > 0 ? "danger-text" : ""}>{run?.consecutiveFailures ?? 0}</dd></div>
                 </dl>
               </section>
+
+              <ConsensusSignal reviews={latestReviews} />
 
               <section className="inspector-section">
                 <div className="inspector-section-title"><h3>Usage</h3><span><Coins size={14} /> tokens</span></div>

@@ -16,6 +16,7 @@ import type {
 } from "@/orchestration/types";
 import { withServiceWorkspace, withWorkspace, type Queryable } from "@/server/db/client";
 import { toJsonValue } from "@/server/db/json";
+import { sanitizeDiagnostic } from "@/server/security/diagnostics";
 import {
   decryptCredential,
   type CredentialEnvelope
@@ -475,9 +476,10 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
     cancelled: boolean
   ): Promise<boolean> {
     return withWorkspace(job.workspaceId, async (sql) => {
+      const diagnostic = sanitizeDiagnostic(failure.message);
       const rows = await sql<{ id: string }[]>`
         UPDATE artifacts artifact
-        SET status = ${cancelled ? "cancelled" : "failed"}, error = ${failure.message}
+        SET status = ${cancelled ? "cancelled" : "failed"}, error = ${diagnostic}
         WHERE artifact.id = ${artifactId}
           AND artifact.iteration_id = ${iteration.id}
           AND EXISTS (
@@ -493,7 +495,8 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
           artifactId,
           code: failure.code,
           retryable: failure.retryable,
-          cancelled
+          cancelled,
+          message: diagnostic
         });
       }
 
@@ -667,10 +670,11 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
 
   async retryJob(job: ClaimedRunJob, error: string, delayMs: number): Promise<void> {
     await withWorkspace(job.workspaceId, async (sql) => {
+      const diagnostic = sanitizeDiagnostic(error);
       const rows = await sql<{ id: string }[]>`
         UPDATE jobs
         SET status = 'queued', available_at = now() + (${delayMs} * interval '1 millisecond'),
-            last_error = ${error}, lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL
+            last_error = ${diagnostic}, lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL
         WHERE id = ${job.id} AND status = 'leased'
           AND attempts < max_attempts
           AND lease_owner = ${job.leaseOwner} AND lease_token = ${job.leaseToken}::uuid
@@ -682,7 +686,7 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
       }
 
       await this.appendEvent(sql, job, job.iterationId, "job.retry_scheduled", {
-        error,
+        error: diagnostic,
         delayMs,
         attempt: job.attempts
       });
@@ -691,9 +695,10 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
 
   async failJob(job: ClaimedRunJob, error: string): Promise<void> {
     await withWorkspace(job.workspaceId, async (sql) => {
+      const diagnostic = sanitizeDiagnostic(error);
       const rows = await sql<{ id: string }[]>`
         UPDATE jobs
-        SET status = 'failed', last_error = ${error},
+        SET status = 'failed', last_error = ${diagnostic},
             lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL
         WHERE id = ${job.id} AND status = 'leased'
           AND lease_owner = ${job.leaseOwner} AND lease_token = ${job.leaseToken}::uuid
@@ -715,7 +720,7 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
         SET status = 'needs_attention', phase = 'idle', consecutive_failures = consecutive_failures + 1
         WHERE id = ${job.runId} AND desired_state = 'running'
       `;
-      await this.appendEvent(sql, job, job.iterationId, "job.failed", { error });
+      await this.appendEvent(sql, job, job.iterationId, "job.failed", { error: diagnostic });
     });
   }
 
@@ -781,7 +786,8 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
         kind: snapshot.provider.kind,
         protocol: snapshot.provider.protocol,
         baseUrl: snapshot.provider.baseUrl,
-        credential: snapshot.provider.protocol === "codex_mcp" || snapshot.provider.protocol === "local_cli"
+        credential: snapshot.provider.protocol === "codex_mcp" ||
+          (snapshot.provider.protocol === "local_cli" && snapshot.provider.kind !== "local_custom")
           ? undefined
           : decryptCredential(row.credential_envelope, {
               workspaceId,

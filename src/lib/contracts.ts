@@ -29,6 +29,7 @@ export const providerKinds = [
   "local_claude",
   "local_gemini",
   "local_kimi",
+  "local_custom",
   "openai",
   "xai",
   "moonshot",
@@ -107,6 +108,7 @@ export interface ArtifactSummary {
   latencyMs: number | null;
   inputTokens: number;
   outputTokens: number;
+  error: string | null;
   createdAt: string;
 }
 

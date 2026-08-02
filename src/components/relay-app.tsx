@@ -21,7 +21,7 @@ import type {
   IterationDetail,
   RunDetail
 } from "@/lib/contracts";
-import { ApiError, relayApi, subscribeToConversation } from "@/components/api-client";
+import { ApiError, relayApi, subscribeToConversation, verifyProviderConnections } from "@/components/api-client";
 import {
   ArtifactView,
   ConversationWaitingView,
@@ -31,6 +31,7 @@ import {
 import { AppLoadingScreen, AuthScreen } from "@/components/auth-screen";
 import { formatPhase } from "@/components/formatters";
 import { InstructionComposer } from "@/components/instruction-composer";
+import { buildImportedThreadSessionValues } from "@/components/imported-thread-context";
 import { LocalThreadsDialog } from "@/components/local-threads-dialog";
 import { RunHeader } from "@/components/run-header";
 import { RunInspector } from "@/components/run-inspector";
@@ -335,6 +336,7 @@ export function RelayApp() {
     setCommandPending("start");
 
     try {
+      const checkedConnections = await verifyProviderConnections(conversation.agents.map((agent) => agent.connectionId));
       const previousRun = conversation.run;
       const { run } = await relayApi.startRun(
         conversation.id,
@@ -349,7 +351,7 @@ export function RelayApp() {
       );
       updateRun(run);
 
-      showToast("success", "Run started", "Round one is being prepared.");
+      showToast("success", "Run started", `${checkedConnections.length} selected runtime${checkedConnections.length === 1 ? " is" : "s are"} ready. Round one is being prepared.`);
       void refreshConversation(conversation.id);
       void loadDashboard();
     } catch (error) {
@@ -530,6 +532,7 @@ export function RelayApp() {
             <>
               <RunHeader
                 conversation={conversation}
+                events={events}
                 canOperate={canOperate}
                 streamConnected={streamConnected}
                 commandPending={commandPending}
@@ -622,18 +625,7 @@ export function RelayApp() {
           onClose={() => setCreateSessionOpen(false)}
           onCreated={createdConversation}
           onNeedsAgent={() => setAddAgentOpen(true)}
-          initialValues={importedThread ? {
-            title: `Review · ${importedThread.title}`.slice(0, 90),
-            objective: [
-              "Review and improve this task imported from a local AI conversation.",
-              `Source: ${importedThread.provider}`,
-              importedThread.workingDirectory ? `Original working directory: ${importedThread.workingDirectory}` : null,
-              importedThread.truncated ? "The middle of the original transcript was shortened to fit this session." : null,
-              "Imported transcript:",
-              importedThread.content || importedThread.preview || importedThread.title,
-              "Identify errors and disagreements, propose fixes, and iterate until the selected reviewers approve."
-            ].filter(Boolean).join("\n\n")
-          } : null}
+          initialValues={importedThread ? buildImportedThreadSessionValues(importedThread) : null}
         />
       ) : null}
       {localThreadsOpen ? (

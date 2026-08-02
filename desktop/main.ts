@@ -2,8 +2,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { app, BrowserWindow, Menu, session, shell } from "electron";
+import { app, BrowserWindow, Menu, safeStorage, session, shell } from "electron";
 import { startEmbeddedDatabase, type EmbeddedDatabaseRuntime } from "./embedded-database";
+import { resolveDesktopCredentialMasterKey } from "./credential-key-store";
 
 const developmentUrl = process.env.RELAY_DESKTOP_URL ?? "http://127.0.0.1:3000";
 const managedProcesses = new Set<ChildProcess>();
@@ -293,9 +294,19 @@ function loadRuntimeEnvironment(environmentPath: string): Record<string, string>
 function ensureRuntimeEnvironment(environmentPath: string, userDataPath: string): Record<string, string> {
   const environment = loadRuntimeEnvironment(environmentPath);
   let changed = !existsSync(environmentPath);
+  const credentialMasterKey = resolveDesktopCredentialMasterKey(
+    userDataPath,
+    environment.CREDENTIAL_MASTER_KEY,
+    safeStorage
+  );
+
+  if (environment.CREDENTIAL_MASTER_KEY) {
+    delete environment.CREDENTIAL_MASTER_KEY;
+    changed = true;
+  }
+
   const defaults: Record<string, string> = {
     SESSION_SECRET: randomBytes(48).toString("base64url"),
-    CREDENTIAL_MASTER_KEY: randomBytes(32).toString("base64"),
     AUTH_MODE: "development",
     ALLOW_LOCAL_DEVELOPMENT_AUTH: "true",
     WORKER_CONCURRENCY: "4",
@@ -340,7 +351,7 @@ function ensureRuntimeEnvironment(environmentPath: string, userDataPath: string)
   delete environment.DATABASE_URL;
   delete environment.HOST_DATABASE_URL;
   delete environment.APP_URL;
-  return environment;
+  return { ...environment, CREDENTIAL_MASTER_KEY: credentialMasterKey };
 }
 
 function findCodexBinary(): string | null {

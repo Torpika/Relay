@@ -1,5 +1,9 @@
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
+import {
+  parseCustomLocalCliConfiguration,
+  type CustomLocalCliConfiguration
+} from "@/local/custom-cli";
 import type { LocalProviderKind } from "@/local/runtime-registry";
 import { localRuntimeDefinition, resolveLocalRuntimeBinary } from "@/local/runtime-registry";
 import { ProviderError } from "@/orchestration/providers/errors";
@@ -18,7 +22,8 @@ export interface LocalCliRunner {
 }
 
 export class LocalCliProvider implements ModelProvider {
-  readonly #kind: Exclude<LocalProviderKind, "local_codex">;
+  readonly #kind: LocalCliProviderKind;
+  readonly #credential: string | undefined;
   readonly #timeoutMs: number;
   readonly #runner: LocalCliRunner;
 
@@ -32,23 +37,28 @@ export class LocalCliProvider implements ModelProvider {
     }
 
     this.#kind = connection.kind;
+    this.#credential = connection.credential;
     this.#timeoutMs = options.timeoutMs ?? 180_000;
     this.#runner = runner;
   }
 
   async generate(request: ModelRequest): Promise<ModelResponse> {
-    const binary = resolveLocalRuntimeBinary(this.#kind);
-    const runtime = localRuntimeDefinition(this.#kind);
+    const customConfiguration = this.#kind === "local_custom"
+      ? parseCustomLocalCliConfiguration(this.#credential)
+      : null;
+    const builtInKind = this.#kind === "local_custom" ? null : this.#kind;
+    const binary = customConfiguration?.command ?? (builtInKind ? resolveLocalRuntimeBinary(builtInKind) : null);
+    const runtimeName = builtInKind ? localRuntimeDefinition(builtInKind).name : "Custom local CLI";
 
     if (!binary) {
-      throw new ProviderError(`${runtime.name} CLI is not installed or is not executable`, {
+      throw new ProviderError(`${runtimeName} is not installed or is not executable`, {
         code: "not_found",
         retryable: false
       });
     }
 
     const prompt = `${request.instructions}\n\n${request.input}`.trim();
-    const invocation = buildInvocation(this.#kind, request, prompt);
+    const invocation = buildInvocation(this.#kind, request, prompt, customConfiguration);
     const startedAt = performance.now();
 
     try {
@@ -77,7 +87,7 @@ export class LocalCliProvider implements ModelProvider {
         throw error;
       }
 
-      const message = error instanceof Error ? error.message : `${runtime.name} CLI request failed`;
+      const message = error instanceof Error ? error.message : `${runtimeName} request failed`;
       throw new ProviderError(message, {
         code: request.signal?.aborted ? "cancelled" : message.toLowerCase().includes("timeout") ? "timeout" : "server_error",
         retryable: !request.signal?.aborted,
@@ -146,10 +156,24 @@ class SpawnLocalCliRunner implements LocalCliRunner {
 }
 
 function buildInvocation(
-  kind: Exclude<LocalProviderKind, "local_codex">,
+  kind: LocalCliProviderKind,
   request: ModelRequest,
-  prompt: string
+  prompt: string,
+  customConfiguration: CustomLocalCliConfiguration | null
 ): { args: string[]; environment: Record<string, string>; stdin?: string } {
+  if (kind === "local_custom") {
+    if (!customConfiguration) {
+      throw new Error("Custom local CLI configuration is missing");
+    }
+
+    const hasPromptArgument = customConfiguration.args.some((argument) => argument.includes("{prompt}"));
+    return {
+      args: customConfiguration.args.map((argument) => argument.replaceAll("{prompt}", prompt)),
+      environment: {},
+      ...(hasPromptArgument ? {} : { stdin: prompt })
+    };
+  }
+
   const modelArguments = request.model && !["default", "auto"].includes(request.model)
     ? ["--model", request.model]
     : [];
@@ -182,7 +206,7 @@ function buildInvocation(
   };
 }
 
-function parseOutput(kind: Exclude<LocalProviderKind, "local_codex">, stdout: string): ParsedLocalOutput {
+function parseOutput(kind: LocalCliProviderKind, stdout: string): ParsedLocalOutput {
   if (!stdout) {
     throw new ProviderError("Local AI returned an empty response", {
       code: "malformed_response",
@@ -190,7 +214,7 @@ function parseOutput(kind: Exclude<LocalProviderKind, "local_codex">, stdout: st
     });
   }
 
-  if (kind === "local_kimi") {
+  if (kind === "local_kimi" || kind === "local_custom") {
     return { content: stdout, responseId: null };
   }
 
@@ -231,9 +255,11 @@ function estimatedTokens(value: string): number {
   return Math.max(1, Math.ceil(value.length / 4));
 }
 
-function isSupportedLocalCliKind(kind: ProviderConnection["kind"]): kind is Exclude<LocalProviderKind, "local_codex"> {
-  return kind === "local_claude" || kind === "local_gemini" || kind === "local_kimi";
+function isSupportedLocalCliKind(kind: ProviderConnection["kind"]): kind is LocalCliProviderKind {
+  return kind === "local_claude" || kind === "local_gemini" || kind === "local_kimi" || kind === "local_custom";
 }
+
+type LocalCliProviderKind = Exclude<LocalProviderKind, "local_codex"> | "local_custom";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

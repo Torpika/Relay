@@ -23,6 +23,8 @@ import {
   initials
 } from "@/components/formatters";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ConsensusSignal } from "@/components/consensus-signal";
+import { describeRunEvent } from "@/lib/run-control";
 
 export type WorkspaceView = "drafts" | "reviews" | "synthesis" | "activity";
 
@@ -85,6 +87,8 @@ function ArtifactCard({
       <div className="artifact-card__content">
         {artifact.content ? (
           <SafeMarkdown content={artifact.content} compact />
+        ) : artifact.error ? (
+          <ArtifactFailureSummary error={artifact.error} />
         ) : (
           <GeneratingPlaceholder label={artifact.status === "failed" ? "Generation failed" : "Waiting for output"} />
         )}
@@ -95,6 +99,16 @@ function ArtifactCard({
         <span>{formatRelativeTime(artifact.createdAt)}</span>
       </footer>
     </article>
+  );
+}
+
+function ArtifactFailureSummary({ error }: { error: string }) {
+  return (
+    <div className="artifact-failure-summary" role="status">
+      <TriangleAlert size={17} />
+      <strong>Generation failed</strong>
+      <p>{error}</p>
+    </div>
   );
 }
 
@@ -194,6 +208,7 @@ function ReviewsView({
 
   return (
     <>
+      <ConsensusSignal reviews={artifacts} />
       <div className="review-matrix-wrap">
         <div className="review-matrix__legend"><span>Reviewer</span><span>Draft author</span></div>
         <table className="review-matrix">
@@ -306,6 +321,12 @@ function eventLabel(event: DomainEvent): string {
 }
 
 function eventSummary(event: DomainEvent): string {
+  const lifecycleSummary = describeRunEvent(event);
+
+  if (lifecycleSummary) {
+    return lifecycleSummary;
+  }
+
   const values = ["message", "agentName", "phase", "status"]
     .map((key) => event.payload[key])
     .filter((value): value is string => typeof value === "string");

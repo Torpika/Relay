@@ -8,6 +8,7 @@ import {
 import { ProviderError } from "@/orchestration/providers/errors";
 import { ProviderHttpClient, resolveProviderUrl } from "@/orchestration/providers/http";
 import { LocalCliProvider, type LocalCliRunner } from "@/orchestration/providers/local-cli";
+import { serializeCustomLocalCliConfiguration } from "@/local/custom-cli";
 import { ResponsesProvider } from "@/orchestration/providers/responses";
 import type { ProviderConnection } from "@/orchestration/providers/types";
 
@@ -94,6 +95,33 @@ describe("LocalCliProvider", () => {
         KIMI_DISABLE_TELEMETRY: "1",
         KIMI_MODEL_THINKING_EFFORT: "xhigh"
       })
+    }));
+  });
+
+  it("runs an explicitly configured custom local CLI without shell interpolation", async () => {
+    const runner: LocalCliRunner = {
+      run: vi.fn(async () => ({ stdout: "Custom review", stderr: "" }))
+    };
+    const provider = new LocalCliProvider({
+      id: "local-custom",
+      kind: "local_custom",
+      protocol: "local_cli",
+      baseUrl: "local://custom",
+      credential: serializeCustomLocalCliConfiguration({
+        command: "/bin/echo",
+        args: ["--prompt", "{prompt}"]
+      })
+    }, {}, runner);
+
+    await expect(provider.generate({
+      model: "default",
+      instructions: "Review",
+      input: "Draft"
+    })).resolves.toMatchObject({ content: "Custom review" });
+    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({
+      command: "/bin/echo",
+      args: ["--prompt", "Review\n\nDraft"],
+      stdin: undefined
     }));
   });
 });

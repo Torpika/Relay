@@ -10,12 +10,14 @@ import {
   Square,
   Zap
 } from "lucide-react";
-import type { ConversationDetail } from "@/lib/contracts";
+import type { ConversationDetail, DomainEvent } from "@/lib/contracts";
 import { PhaseStepper } from "@/components/phase-stepper";
+import { RunControlSignal } from "@/components/run-control-signal";
 import { Button, IconButton, StatusBadge } from "@/components/ui";
 
 interface RunHeaderProps {
   conversation: ConversationDetail;
+  events: DomainEvent[];
   canOperate: boolean;
   streamConnected: boolean;
   commandPending: "start" | "pause" | "resume" | null;
@@ -29,6 +31,7 @@ interface RunHeaderProps {
 
 export function RunHeader({
   conversation,
+  events,
   canOperate,
   streamConnected,
   commandPending,
@@ -107,7 +110,10 @@ export function RunHeader({
           <IconButton className="inspector-toggle" label="Open run inspector" icon={<PanelRightOpen size={19} />} onClick={onOpenInspector} />
         </div>
       </div>
-      {run ? <PhaseStepper phase={run.phase} status={run.status} /> : null}
+      {run ? <>
+        <PhaseStepper phase={run.phase} status={run.status} />
+        <RunControlSignal run={run} events={events} />
+      </> : null}
     </header>
   );
 }

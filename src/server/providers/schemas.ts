@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { providerKinds, providerProtocols } from "@/lib/contracts";
+import { createCustomLocalCliConfiguration, customLocalProviderBaseUrl } from "@/local/custom-cli";
 import { isLocalProviderKind, localRuntimeDefinition } from "@/local/runtime-registry";
 
 export const createProviderSchema = z.object({
@@ -7,7 +8,9 @@ export const createProviderSchema = z.object({
   kind: z.enum(providerKinds),
   protocol: z.enum(providerProtocols),
   baseUrl: z.string().trim().min(1).max(2_048),
-  credential: z.string().trim().max(20_000).optional().default("")
+  credential: z.string().trim().max(20_000).optional().default(""),
+  localCommand: z.string().trim().max(2_048).optional(),
+  localArgs: z.array(z.string().trim().min(1).max(1_000)).max(32).optional()
 }).strict().superRefine((value, context) => {
   if (isLocalProviderKind(value.kind)) {
     const expectedProtocol = value.kind === "local_codex" ? "codex_mcp" : "local_cli";
@@ -15,6 +18,23 @@ export const createProviderSchema = z.object({
 
     if (value.protocol !== expectedProtocol || value.baseUrl !== runtime.baseUrl) {
       context.addIssue({ code: "custom", message: `${runtime.name} must use its local runtime` });
+    }
+    return;
+  }
+
+  if (value.kind === "local_custom") {
+    if (value.protocol !== "local_cli" || value.baseUrl !== customLocalProviderBaseUrl) {
+      context.addIssue({ code: "custom", message: "Custom local CLI must use its local runtime" });
+    }
+
+    try {
+      createCustomLocalCliConfiguration(value.localCommand ?? "", value.localArgs ?? []);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        path: ["localCommand"],
+        message: error instanceof Error ? error.message : "Custom local CLI configuration is invalid"
+      });
     }
     return;
   }
@@ -34,6 +54,8 @@ export const updateProviderSchema = z.object({
   protocol: z.enum(providerProtocols).optional(),
   baseUrl: z.string().trim().min(1).max(2_048).optional(),
   credential: z.string().trim().min(1).max(20_000).optional(),
+  localCommand: z.string().trim().max(2_048).optional(),
+  localArgs: z.array(z.string().trim().min(1).max(1_000)).max(32).optional(),
   enabled: z.boolean().optional()
 }).strict().refine((value) => Object.keys(value).length > 0, "At least one field is required");
 
