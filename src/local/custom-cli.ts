@@ -1,4 +1,4 @@
-import { accessSync, constants } from "node:fs";
+import { accessSync, constants, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 
 export const customLocalProviderBaseUrl = "local://custom";
@@ -50,7 +50,7 @@ export function parseCustomLocalCliConfiguration(value: string | undefined): Cus
 export function isExecutableLocalCommand(command: string): boolean {
   try {
     accessSync(command, constants.X_OK);
-    return true;
+    return statSync(command).isFile();
   } catch {
     return false;
   }
