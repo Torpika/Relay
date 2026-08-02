@@ -11,6 +11,7 @@ import type {
 } from "@/local/threads/types";
 
 const maximumThreadsPerSource = 200;
+const maximumDirectoriesPerSourceScan = 4_000;
 const maximumThreadFileBytes = 2_000_000;
 const maximumImportFileBytes = 25_000_000;
 const maximumImportedContentCharacters = 36_000;
@@ -414,14 +415,17 @@ function parseTimestamp(value: unknown, fallback: number): number {
 
 function listFiles(root: string, extension: string, limit: number): string[] {
   const pending = [root];
-  const files: string[] = [];
+  const files: Array<{ path: string; modifiedAt: number }> = [];
+  let visitedDirectories = 0;
 
-  while (pending.length && files.length < limit) {
+  while (pending.length && visitedDirectories < maximumDirectoriesPerSourceScan) {
     const directory = pending.pop();
 
     if (!directory) {
       break;
     }
+
+    visitedDirectories += 1;
 
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
@@ -429,16 +433,15 @@ function listFiles(root: string, extension: string, limit: number): string[] {
       if (entry.isDirectory()) {
         pending.push(path);
       } else if (entry.isFile() && entry.name.endsWith(extension)) {
-        files.push(path);
-      }
-
-      if (files.length >= limit) {
-        break;
+        files.push({ path, modifiedAt: statSync(path).mtimeMs });
       }
     }
   }
 
-  return files;
+  return files
+    .sort((left, right) => right.modifiedAt - left.modifiedAt || left.path.localeCompare(right.path))
+    .slice(0, limit)
+    .map((file) => file.path);
 }
 
 function codexDatabasePath(userHome: string): string | undefined {

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -131,5 +131,30 @@ describe("discoverLocalThreads", () => {
       content: "User:\nFind gaps in the launch brief\n\nAssistant:\nTwo gaps need attention."
     }));
     expect(imported?.content).not.toContain("Private system prompt");
+  });
+
+  it("prioritizes the most recent Gemini sessions when a local history exceeds the import cap", async () => {
+    const { mkdtemp } = await import("node:fs/promises");
+    const userHome = await mkdtemp(join(tmpdir(), "relay-gemini-recency-"));
+    temporaryDirectories.push(userHome);
+    const sessionsPath = join(userHome, ".gemini", "tmp");
+    mkdirSync(sessionsPath, { recursive: true });
+
+    for (let index = 0; index <= 200; index += 1) {
+      const sessionPath = join(sessionsPath, `session-${String(index).padStart(3, "0")}.json`);
+      const updatedAt = new Date(1_700_000_000_000 + index * 1_000);
+      writeFileSync(sessionPath, JSON.stringify({
+        sessionId: `session-${index}`,
+        lastUpdated: updatedAt.toISOString(),
+        messages: [{ role: "user", content: `Task ${index}` }]
+      }));
+      utimesSync(sessionPath, updatedAt, updatedAt);
+    }
+
+    const threads = discoverLocalThreads(userHome).threads.filter((thread) => thread.provider === "gemini_cli");
+
+    expect(threads).toHaveLength(200);
+    expect(threads.some((thread) => thread.id === "gemini_cli:session-200")).toBe(true);
+    expect(threads.some((thread) => thread.id === "gemini_cli:session-000")).toBe(false);
   });
 });
