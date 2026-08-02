@@ -11,7 +11,7 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConversationSummary, Viewer } from "@/lib/contracts";
 import { formatCompactNumber, formatRelativeTime, initials } from "@/components/formatters";
 import { Button, IconButton } from "@/components/ui";
@@ -45,6 +45,7 @@ export function SessionRail({
 }: SessionRailProps) {
   const [query, setQuery] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
 
@@ -56,6 +57,20 @@ export function SessionRail({
       `${conversation.title} ${conversation.objective}`.toLocaleLowerCase().includes(normalizedQuery)
     );
   }, [conversations, query]);
+
+  useEffect(() => {
+    const focusSessionSearch = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || (!event.metaKey && !event.ctrlKey) || event.key.toLocaleLowerCase() !== "k") {
+        return;
+      }
+
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", focusSessionSearch);
+    return () => window.removeEventListener("keydown", focusSessionSearch);
+  }, []);
 
   return (
     <>
@@ -99,6 +114,7 @@ export function SessionRail({
           <Search aria-hidden="true" size={15} />
           <span className="sr-only">Search sessions</span>
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="Search sessions"
             value={query}
