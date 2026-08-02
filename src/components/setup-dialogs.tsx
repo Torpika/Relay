@@ -25,7 +25,7 @@ import type {
   RunDetail
 } from "@/lib/contracts";
 import { getProviderPreset, providerPresets } from "@/lib/provider-presets";
-import { relayApi } from "@/components/api-client";
+import { relayApi, verifyProviderConnections } from "@/components/api-client";
 import { initials } from "@/components/formatters";
 import { Button, Dialog, Field, InlineNotice } from "@/components/ui";
 
@@ -439,6 +439,12 @@ export function CreateSessionDialog({ open, agents, onClose, onCreated, onNeedsA
     setSubmitting(true);
 
     try {
+      if (startImmediately) {
+        await verifyProviderConnections(
+          enabledAgents.filter((agent) => agentIds.includes(agent.id)).map((agent) => agent.connectionId)
+        );
+      }
+
       const conversation = await relayApi.createConversation({
         title: title.trim(),
         objective: objective.trim(),
@@ -581,7 +587,7 @@ export function CreateSessionDialog({ open, agents, onClose, onCreated, onNeedsA
 
           <label className="start-toggle">
             <span className="toggle"><input type="checkbox" checked={startImmediately} onChange={(event) => setStartImmediately(event.target.checked)} /><span /></span>
-            <span><strong>Start immediately</strong><small>Begin round one as soon as the session is created.</small></span>
+            <span><strong>Start immediately</strong><small>Check each selected runtime, then begin round one.</small></span>
           </label>
 
           {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}

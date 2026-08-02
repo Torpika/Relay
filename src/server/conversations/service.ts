@@ -484,6 +484,17 @@ function selectSynthesizer(agents: ConversationAgentRow[], synthesizerAgentId?: 
     throw new ApiError(400, "invalid_agents", "A run needs at least two enabled agents with enabled providers");
   }
 
+  const unavailableProviders = agents.filter((agent) => agent.provider_status !== "healthy");
+
+  if (unavailableProviders.length) {
+    const providerNames = [...new Set(unavailableProviders.map((agent) => agent.provider_name))];
+    throw new ApiError(
+      409,
+      "provider_not_ready",
+      `Every selected runtime must pass a readiness check before Relay starts: ${providerNames.join(", ")}`
+    );
+  }
+
   const synthesizer = synthesizerAgentId
     ? agents.find((agent) => agent.id === synthesizerAgentId)
     : agents.find((agent) => agent.roles.includes("synthesize"));

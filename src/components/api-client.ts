@@ -34,6 +34,16 @@ export class ApiError extends Error {
   }
 }
 
+export class ProviderReadinessError extends Error {
+  readonly connections: ProviderConnectionSummary[];
+
+  constructor(connections: ProviderConnectionSummary[]) {
+    super(`Unavailable runtimes: ${connections.map((connection) => connection.name).join(", ")}`);
+    this.name = "ProviderReadinessError";
+    this.connections = connections;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -147,6 +157,18 @@ export const relayApi = {
     }),
   logout: () => request<void>("/api/auth/logout", { method: "POST" })
 };
+
+export async function verifyProviderConnections(connectionIds: readonly string[]): Promise<ProviderConnectionSummary[]> {
+  const uniqueConnectionIds = [...new Set(connectionIds)];
+  const connections = await Promise.all(uniqueConnectionIds.map((connectionId) => relayApi.testProvider(connectionId)));
+  const unavailableConnections = connections.filter((connection) => connection.status !== "healthy");
+
+  if (unavailableConnections.length) {
+    throw new ProviderReadinessError(unavailableConnections);
+  }
+
+  return connections;
+}
 
 export function subscribeToConversation(
   conversationId: string,

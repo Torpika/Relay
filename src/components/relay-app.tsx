@@ -21,7 +21,7 @@ import type {
   IterationDetail,
   RunDetail
 } from "@/lib/contracts";
-import { ApiError, relayApi, subscribeToConversation } from "@/components/api-client";
+import { ApiError, relayApi, subscribeToConversation, verifyProviderConnections } from "@/components/api-client";
 import {
   ArtifactView,
   ConversationWaitingView,
@@ -335,6 +335,7 @@ export function RelayApp() {
     setCommandPending("start");
 
     try {
+      const checkedConnections = await verifyProviderConnections(conversation.agents.map((agent) => agent.connectionId));
       const previousRun = conversation.run;
       const { run } = await relayApi.startRun(
         conversation.id,
@@ -349,7 +350,7 @@ export function RelayApp() {
       );
       updateRun(run);
 
-      showToast("success", "Run started", "Round one is being prepared.");
+      showToast("success", "Run started", `${checkedConnections.length} selected runtime${checkedConnections.length === 1 ? " is" : "s are"} ready. Round one is being prepared.`);
       void refreshConversation(conversation.id);
       void loadDashboard();
     } catch (error) {
