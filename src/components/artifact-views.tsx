@@ -23,6 +23,7 @@ import {
   initials
 } from "@/components/formatters";
 import { SafeMarkdown } from "@/components/safe-markdown";
+import { ConsensusSignal } from "@/components/consensus-signal";
 
 export type WorkspaceView = "drafts" | "reviews" | "synthesis" | "activity";
 
@@ -194,6 +195,7 @@ function ReviewsView({
 
   return (
     <>
+      <ConsensusSignal reviews={artifacts} />
       <div className="review-matrix-wrap">
         <div className="review-matrix__legend"><span>Reviewer</span><span>Draft author</span></div>
         <table className="review-matrix">

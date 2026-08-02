@@ -21,6 +21,7 @@ import type {
   RunSnapshot,
   StoredArtifact
 } from "@/orchestration/types";
+import { parseReviewDecision } from "@/lib/review-consensus";
 
 export interface RoundProcessorOptions {
   draftConcurrency?: number;
@@ -532,9 +533,8 @@ export function reviewsHaveConsensus(reviews: readonly StoredArtifact[]): boolea
   }
 
   return reviews.every((review) => {
-    const decision = /(?:^|\n)RELAY_REVIEW_DECISION:\s*(APPROVE|CHANGES_REQUESTED)\s*(?:\n|$)/iu.exec(review.content)?.[1];
-    const blockingIssues = /(?:^|\n)RELAY_BLOCKING_ISSUES:\s*(\d+)\s*(?:\n|$)/iu.exec(review.content)?.[1];
-    return decision?.toUpperCase() === "APPROVE" && Number(blockingIssues) === 0;
+    const decision = parseReviewDecision(review.content);
+    return decision.decision === "approve" && decision.blockingIssues === 0;
   });
 }
 
