@@ -16,6 +16,7 @@ import type {
 } from "@/orchestration/types";
 import { withServiceWorkspace, withWorkspace, type Queryable } from "@/server/db/client";
 import { toJsonValue } from "@/server/db/json";
+import { sanitizeDiagnostic } from "@/server/security/diagnostics";
 import {
   decryptCredential,
   type CredentialEnvelope
@@ -475,9 +476,10 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
     cancelled: boolean
   ): Promise<boolean> {
     return withWorkspace(job.workspaceId, async (sql) => {
+      const diagnostic = sanitizeDiagnostic(failure.message);
       const rows = await sql<{ id: string }[]>`
         UPDATE artifacts artifact
-        SET status = ${cancelled ? "cancelled" : "failed"}, error = ${failure.message}
+        SET status = ${cancelled ? "cancelled" : "failed"}, error = ${diagnostic}
         WHERE artifact.id = ${artifactId}
           AND artifact.iteration_id = ${iteration.id}
           AND EXISTS (
@@ -493,7 +495,8 @@ export class PostgresOrchestrationRepository implements OrchestrationRepository 
           artifactId,
           code: failure.code,
           retryable: failure.retryable,
-          cancelled
+          cancelled,
+          message: diagnostic
         });
       }
 

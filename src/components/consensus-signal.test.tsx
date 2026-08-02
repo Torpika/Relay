@@ -16,6 +16,7 @@ function review(content: string, status: ArtifactSummary["status"] = "complete")
     latencyMs: null,
     inputTokens: 0,
     outputTokens: 0,
+    error: null,
     createdAt: "2026-08-02T00:00:00.000Z"
   };
 }

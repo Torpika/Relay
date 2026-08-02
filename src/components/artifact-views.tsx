@@ -87,6 +87,8 @@ function ArtifactCard({
       <div className="artifact-card__content">
         {artifact.content ? (
           <SafeMarkdown content={artifact.content} compact />
+        ) : artifact.error ? (
+          <ArtifactFailureSummary error={artifact.error} />
         ) : (
           <GeneratingPlaceholder label={artifact.status === "failed" ? "Generation failed" : "Waiting for output"} />
         )}
@@ -97,6 +99,16 @@ function ArtifactCard({
         <span>{formatRelativeTime(artifact.createdAt)}</span>
       </footer>
     </article>
+  );
+}
+
+function ArtifactFailureSummary({ error }: { error: string }) {
+  return (
+    <div className="artifact-failure-summary" role="status">
+      <TriangleAlert size={17} />
+      <strong>Generation failed</strong>
+      <p>{error}</p>
+    </div>
   );
 }
 

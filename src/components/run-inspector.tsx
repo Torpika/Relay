@@ -4,6 +4,7 @@ import {
   Check,
   CheckCheck,
   ChevronLeft,
+  CircleAlert,
   Coins,
   Copy,
   Infinity as InfinityIcon,
@@ -99,6 +100,12 @@ export function RunInspector({
               <div className="artifact-inspector__content">
                 {selectedArtifact.content ? <SafeMarkdown content={selectedArtifact.content} compact /> : <p>No output was recorded.</p>}
               </div>
+              {selectedArtifact.error ? (
+                <div className="artifact-inspector__error" role="alert">
+                  <CircleAlert size={16} />
+                  <span><strong>Execution failed</strong><small>{selectedArtifact.error}</small></span>
+                </div>
+              ) : null}
               <dl className="inspector-facts inspector-facts--grid">
                 <div><dt>Latency</dt><dd>{formatDuration(selectedArtifact.latencyMs)}</dd></div>
                 <div><dt>Input</dt><dd>{formatCompactNumber(selectedArtifact.inputTokens)} tok</dd></div>

@@ -22,6 +22,7 @@ function reviewArtifact(
     latencyMs: 850,
     inputTokens: 120,
     outputTokens: 80,
+    error: null,
     createdAt: "2026-08-01T10:00:00.000Z"
   };
 }
@@ -56,5 +57,32 @@ describe("ArtifactView reviews", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Codex's review of Grok: complete" }));
     expect(onSelectArtifact).toHaveBeenCalledWith(firstReview);
+  });
+
+  it("shows a retained, safe execution diagnostic for failed artifacts", () => {
+    const failedDraft: ArtifactSummary = {
+      ...reviewArtifact("draft-1", "Codex", "Grok"),
+      kind: "draft",
+      targetAgentId: null,
+      targetAgentName: null,
+      content: "",
+      status: "failed",
+      error: "Claude Code CLI is not installed or is not executable"
+    };
+    const iteration: IterationDetail = {
+      id: "iteration-1",
+      number: 1,
+      phase: "drafting",
+      status: "failed",
+      synthesis: null,
+      artifacts: [failedDraft],
+      startedAt: "2026-08-01T10:00:00.000Z",
+      completedAt: "2026-08-01T10:01:00.000Z"
+    };
+
+    render(<ArtifactView view="drafts" iteration={iteration} events={[]} selectedArtifactId={null} onSelectArtifact={vi.fn()} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Generation failed");
+    expect(screen.getByRole("status")).toHaveTextContent("Claude Code CLI is not installed");
   });
 });

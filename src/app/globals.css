@@ -993,6 +993,9 @@ a {
 }
 
 .artifact-card:hover .artifact-card__content::after { background: linear-gradient(transparent, #131616); }
+.artifact-failure-summary { display: grid; align-content: center; gap: 7px; height: 100%; color: #ff9a75; }
+.artifact-failure-summary strong { color: var(--text-soft); font-size: 10px; }
+.artifact-failure-summary p { max-height: 82px; margin: 0; overflow: hidden; color: var(--text-muted); font: 9px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 
 .artifact-card__footer {
   display: flex;
@@ -1007,6 +1010,14 @@ a {
 
 .artifact-card__footer span { display: inline-flex; align-items: center; gap: 4px; }
 .artifact-card__footer span:last-child { margin-left: auto; }
+
+.artifact-inspector__error { display: flex; gap: 8px; margin: 11px 0; padding: 10px; border: 1px solid rgba(255, 138, 101, 0.34); border-radius: var(--radius-sm); background: rgba(255, 138, 101, 0.06); color: #ff9a75; }
+.artifact-inspector__error > svg { flex: 0 0 auto; margin-top: 1px; }
+.artifact-inspector__error span { min-width: 0; }
+.artifact-inspector__error strong,
+.artifact-inspector__error small { display: block; }
+.artifact-inspector__error strong { color: var(--text-soft); font-size: 9px; }
+.artifact-inspector__error small { margin-top: 3px; color: var(--text-muted); font: 8px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 
 .review-route {
   display: flex;

@@ -107,6 +107,7 @@ export interface ArtifactSummary {
   latencyMs: number | null;
   inputTokens: number;
   outputTokens: number;
+  error: string | null;
   createdAt: string;
 }
 

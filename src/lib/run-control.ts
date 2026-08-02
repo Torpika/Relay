@@ -171,6 +171,10 @@ export function describeRunEvent(event: DomainEvent): string | null {
     return `The latest job failed: ${event.payload.error}`;
   }
 
+  if (event.type === "artifact.failed" && typeof event.payload.message === "string") {
+    return `An agent artifact failed: ${event.payload.message}`;
+  }
+
   if (event.type === "run.control_requested" && typeof event.payload.command === "string") {
     return `Operator requested ${event.payload.command}.`;
   }

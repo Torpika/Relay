@@ -98,6 +98,7 @@ interface ArtifactRow {
   latency_ms: number | null;
   input_tokens: number;
   output_tokens: number;
+  error: string | null;
   created_at: Date | string;
 }
 
@@ -182,6 +183,7 @@ function mapArtifact(row: ArtifactRow): ArtifactSummary {
     latencyMs: row.latency_ms,
     inputTokens: row.input_tokens,
     outputTokens: row.output_tokens,
+    error: row.error,
     createdAt: iso(row.created_at) as string
   };
 }
